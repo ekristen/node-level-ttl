@@ -1,38 +1,39 @@
 const after  = require('after')
     , xtend  = require('xtend')
-    , spaces = require('level-spaces')
+    , util   = require('util')
 
     , DEFAULT_FREQUENCY = 10000
+
+var global_options;
+
+function formatTTLKey(key) {
+  var sp = global_options.separator;
+  var ns = global_options.namespace;
+  return sp + ns + sp + key;
+}
 
 
 function startTtl (db, checkFrequency) {
   db._ttl.intervalId = setInterval(function () {
     var batch    = []
-      , subBatch = []
       , query = {
             keyEncoding: 'utf8'
           , valueEncoding: 'utf8'
-          , end: String(Date.now())
+          , start: formatTTLKey('!x!')
+          , end: formatTTLKey('!x!' + String(Date.now()) + '~')
         }
 
     db._ttl._checkInProgress = true
-    db._ttl.sub.createReadStream(query)
+    db.createReadStream(query)
       .on('data', function (data) {
-        subBatch.push({ type: 'del', key: data.value })
-        subBatch.push({ type: 'del', key: data.key })
+        batch.push({ type: 'del', key: formatTTLKey(data.value) })
+        batch.push({ type: 'del', key: data.key })
         batch.push({ type: 'del', key: data.value })
       })
       .on('error', db.emit.bind(db, 'error'))
       .on('end', function () {
         if (batch.length) {
-          db._ttl.sub.batch(
-              subBatch
-            , { keyEncoding: 'utf8' }
-            , function (err) {
-                if (err)
-                  db.emit('error', err)
-              }
-          )
+          //console.log(batch);
           db._ttl.batch(
               batch
             , { keyEncoding: 'utf8' }
@@ -75,14 +76,16 @@ function ttlon (db, keys, ttl, callback) {
     keys.forEach(function (key) {
       if (typeof key != 'string')
         key = key.toString()
-      batch.push({ type: 'put', key: key               , value: exp })
-      batch.push({ type: 'put', key: exp + '!' + key, value: key })
+      batch.push({ type: 'put', key: formatTTLKey(key)               , value: exp })
+      batch.push({ type: 'put', key: formatTTLKey('!x!' + exp + '!' + key)   , value: key })
     })
+
+    //console.log(batch);
 
     if (!batch.length)
       return callback && callback()
 
-    db._ttl.sub.batch(
+    db._ttl.batch(
         batch
       , { keyEncoding: 'utf8', valueEncoding: 'utf8' }
       , function (err) {
@@ -106,7 +109,7 @@ function ttloff (db, keys, callback) {
         if (!batch.length)
           return callback && callback()
 
-        db._ttl.sub.batch(
+        db._ttl.batch(
             batch
           , { keyEncoding: 'utf8', valueEncoding: 'utf8' }
           , function (err) {
@@ -121,13 +124,13 @@ function ttloff (db, keys, callback) {
     if (typeof key != 'string')
       key = key.toString()
 
-    db._ttl.sub.get(
+    db.get(
         key
       , { keyEncoding: 'utf8', valueEncoding: 'utf8' }
       , function (err, exp) {
           if (!err && exp > 0) {
-            batch.push({ type: 'del', key: key })
-            batch.push({ type: 'del', key: exp + '!' + key })
+            batch.push({ type: 'del', key: formatTTLKey(key) })
+            batch.push({ type: 'del', key: formatTTLKey(exp + '!' + key) })
           }
           done(err && err.name != 'NotFoundError' && err)
         }
@@ -226,6 +229,7 @@ function setup (db, options) {
   options = xtend({
       methodPrefix   : ''
     , namespace      : 'ttl'
+    , separator      : '\xff'
     , checkFrequency : DEFAULT_FREQUENCY
   }, options)
 
@@ -234,8 +238,9 @@ function setup (db, options) {
     , del   : db.del.bind(db)
     , batch : db.batch.bind(db)
     , close : db.close.bind(db)
-    , sub   : options.sub || spaces(db, options.namespace)
   }
+  
+  global_options = options;
 
   db[options.methodPrefix + 'put']   = put.bind(null, db)
   db[options.methodPrefix + 'del']   = del.bind(null, db)
