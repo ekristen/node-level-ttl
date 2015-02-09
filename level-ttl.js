@@ -1,17 +1,16 @@
 const after  = require('after')
     , xtend  = require('xtend')
     , util   = require('util')
-
     , DEFAULT_FREQUENCY = 10000
 
 var global_options;
+var default_ttl = 0;
 
 function formatTTLKey(key) {
   var sp = global_options.separator;
   var ns = global_options.namespace;
   return sp + ns + sp + key;
 }
-
 
 function startTtl (db, checkFrequency) {
   db._ttl.intervalId = setInterval(function () {
@@ -79,8 +78,6 @@ function ttlon (db, keys, ttl, callback) {
       batch.push({ type: 'put', key: formatTTLKey('!x!' + exp + '!' + key)   , value: key })
     })
 
-    //console.log(batch);
-
     if (!batch.length)
       return callback && callback()
 
@@ -138,6 +135,17 @@ function ttloff (db, keys, callback) {
 }
 
 function put (db, key, value, options, callback) {
+  if (typeof options == 'function') {
+    callback = options;
+    options = {};
+  }
+  
+  options = options || {};
+  
+  if (default_ttl > 0 && !options.ttl && options.ttl != 0) {
+    options.ttl = default_ttl;
+  }
+
   var ttl
     , done
     , _callback = callback
@@ -172,6 +180,17 @@ function del (db, key, options, callback) {
 }
 
 function batch (db, arr, options, callback) {
+  if (typeof options == 'function') {
+    callback = options;
+    options = {};
+  }
+
+  options = options || {}
+  
+  if (default_ttl > 0 && !options.ttl && options.ttl != 0) {
+    options.ttl = default_ttl;
+  }
+
   var ttl
     , done
     , on
@@ -230,7 +249,11 @@ function setup (db, options) {
     , namespace      : 'ttl'
     , separator      : '\xff'
     , checkFrequency : DEFAULT_FREQUENCY
+    , defaultTTL     : 0
   }, options)
+
+  global_options = options;
+  default_ttl = options.defaultTTL;
 
   db._ttl = {
       put   : db.put.bind(db)
@@ -238,8 +261,6 @@ function setup (db, options) {
     , batch : db.batch.bind(db)
     , close : db.close.bind(db)
   }
-  
-  global_options = options;
 
   db[options.methodPrefix + 'put']   = put.bind(null, db)
   db[options.methodPrefix + 'del']   = del.bind(null, db)

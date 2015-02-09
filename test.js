@@ -3,6 +3,7 @@ const test       = require('tape')
     , levelup    = require('level')
     , listStream = require('list-stream')
     , ttl        = require('./')
+    , xtend      = require('xtend')
 
 
 function fixtape (t) {
@@ -12,7 +13,7 @@ function fixtape (t) {
 }
 
 
-function ltest (name, fn, opts) {
+function ltest (name, fn, opts, ttl_opts) {
   test(name, function (t) {
     var location = '__ttl-' + Math.random()
       , db
@@ -30,7 +31,7 @@ function ltest (name, fn, opts) {
       t.notOk(err, 'no error on open()')
 
       var createReadStream = _db.createReadStream.bind(_db)
-      db = ttl(_db, { checkFrequency: 50 })
+      db = ttl(_db, xtend({ checkFrequency: 50 }, ttl_opts))
 
       fn(db, t, createReadStream)
     })
@@ -409,6 +410,120 @@ test('test stop() method stops interval and doesn\'t hold process up', function 
     }, 120)
   })
 })
+
+
+ltest('single put with default ttl set', function (db, t, createReadStream) {
+  db.put('foo', 'bar1', function(err) {
+    t.ok(!err, 'no error');
+
+    setTimeout(function () {
+      db.get('foo', function (err, value) {
+        t.notOk(err, 'no error')
+        t.equal('bar1', value)
+      })
+    }, 50)
+    setTimeout(function () {
+      db.get('foo', function (err, value) {
+        t.ok(err, 'got error')
+        t.ok(err.notFound, 'not found error')
+        t.notOk(value, 'no value')
+      })
+    }, 125)
+  });
+
+  setTimeout(t.end.bind(t), 175)
+}, [], { defaultTTL: 75 } )
+
+
+ltest('single put with overridden ttl set', function (db, t, createReadStream) {
+  db.put('foo', 'bar1', { ttl: 99 }, function(err) {
+    t.ok(!err, 'no error');
+
+    setTimeout(function () {
+      db.get('foo', function (err, value) {
+        t.notOk(err, 'no error')
+        t.equal('bar1', value)
+      })
+    }, 50)
+    setTimeout(function () {
+      db.get('foo', function (err, value) {
+        t.ok(err, 'got error')
+        t.ok(err.notFound, 'not found error')
+        t.notOk(value, 'no value')
+      })
+    }, 125)
+  })
+
+  setTimeout(t.end.bind(t), 175)
+}, {}, { defaultTTL: 75 } )
+
+
+ltest('batch put with default ttl set', function (db, t, createReadStream) {
+  db.batch([
+    { type: 'put', key: 'foo', value: 'bar1' },
+    { type: 'put', key: 'bar', value: 'foo1' }
+  ], function(err) {
+    t.ok(!err, 'no error');
+    
+    setTimeout(function () {
+      db.get('foo', function (err, value) {
+        t.notOk(err, 'no error')
+        t.equal('bar1', value)
+        db.get('bar', function(err, value) {
+          t.notOk(err, 'no error')
+          t.equal('foo1', value);
+        })
+      })
+    }, 50)
+    setTimeout(function () {
+      db.get('foo', function (err, value) {
+        t.ok(err, 'got error')
+        t.ok(err.notFound, 'not found error')
+        t.notOk(value, 'no value')
+        db.get('bar', function(err, value) {
+          t.ok(err, 'no error')
+          t.ok(err.notFound, 'not found error')
+          t.notOk(value, 'no value');
+        })
+      })
+    }, 125)
+  })
+  
+  setTimeout(t.end.bind(t), 175)
+}, {}, { defaultTTL: 75 })
+
+
+ltest('batch put with overriden ttl set', function (db, t, createReadStream) {
+  db.batch([
+    { type: 'put', key: 'foo', value: 'bar1' },
+    { type: 'put', key: 'bar', value: 'foo1' }
+  ], { ttl: 99 }, function(err) {
+    setTimeout(function () {
+      db.get('foo', function (err, value) {
+        t.notOk(err, 'no error')
+        t.equal('bar1', value)
+        db.get('bar', function(err, value) {
+          t.notOk(err, 'no error')
+          t.equal('foo1', value);
+        })
+      })
+    }, 50)
+    setTimeout(function () {
+      db.get('foo', function (err, value) {
+        t.ok(err, 'got error')
+        t.ok(err.notFound, 'not found error')
+        t.notOk(value, 'no value')
+        db.get('bar', function(err, value) {
+          t.ok(err, 'no error')
+          t.ok(err.notFound, 'not found error')
+          t.notOk(value, 'no value');
+        })
+      })
+    }, 125)
+  })
+  
+  setTimeout(t.end.bind(t), 175)
+}, {}, { defaultTTL: 75 })
 
 
 test('without options', function (t) {
