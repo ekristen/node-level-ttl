@@ -33,7 +33,6 @@ function startTtl (db, checkFrequency) {
       .on('error', db.emit.bind(db, 'error'))
       .on('end', function () {
         if (batch.length) {
-          //console.log(batch);
           db._ttl.batch(
               batch
             , { keyEncoding: 'utf8' }
