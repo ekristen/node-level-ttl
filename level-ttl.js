@@ -74,8 +74,8 @@ function ttlon (db, keys, ttl, callback) {
     keys.forEach(function (key) {
       if (typeof key != 'string')
         key = key.toString()
-      batch.push({ type: 'put', key: formatTTLKey(key)               , value: exp })
-      batch.push({ type: 'put', key: formatTTLKey('!x!' + exp + '!' + key)   , value: key })
+      batch.push({ type: 'put', key: formatTTLKey(key), value: exp })
+      batch.push({ type: 'put', key: formatTTLKey('!x!' + exp + '!' + key), value: key })
     })
 
     if (!batch.length)
