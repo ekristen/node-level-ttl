@@ -1,6 +1,6 @@
 const after  = require('after')
     , xtend  = require('xtend')
-    , util   = require('util')
+
     , DEFAULT_FREQUENCY = 10000
 
 var global_options;
