@@ -289,7 +289,7 @@ ltest('test del', function (db, t, createReadStream) {
               for (; i < 6 && arr[3] && arr[3].value; i++) {
                 if (arr[3] && arr[3].value == String(ts))
                   break
-                ts++;
+                ts++
               }
               contains(t, arr, 'bar', 'barvalue')
               contains(t, arr, 'foo', 'foovalue')
