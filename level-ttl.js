@@ -3,13 +3,9 @@ const after  = require('after')
 
     , DEFAULT_FREQUENCY = 10000
 
-var global_options;
-var default_ttl = 0;
-
-function formatTTLKey(key) {
-  var sp = global_options.separator;
-  var ns = global_options.namespace;
-  return sp + ns + sp + key;
+function prefixKey (db, key) {
+  var opts = db._ttl.options
+  return opts.separator + opts.namespace + opts.separator + key
 }
 
 function startTtl (db, checkFrequency) {
@@ -18,14 +14,14 @@ function startTtl (db, checkFrequency) {
       , query = {
             keyEncoding: 'utf8'
           , valueEncoding: 'utf8'
-          , start: formatTTLKey('!x!')
-          , end: formatTTLKey('!x!' + String(Date.now()) + '~')
+          , start: prefixKey(db, '!x!')
+          , end: prefixKey(db, '!x!' + String(Date.now()) + '~')
         }
 
     db._ttl._checkInProgress = true
     db.createReadStream(query)
       .on('data', function (data) {
-        batch.push({ type: 'del', key: formatTTLKey(data.value) })
+        batch.push({ type: 'del', key: prefixKey(db, data.value) })
         batch.push({ type: 'del', key: data.key })
         batch.push({ type: 'del', key: data.value })
       })
@@ -74,8 +70,8 @@ function ttlon (db, keys, ttl, callback) {
     keys.forEach(function (key) {
       if (typeof key != 'string')
         key = key.toString()
-      batch.push({ type: 'put', key: formatTTLKey(key), value: exp })
-      batch.push({ type: 'put', key: formatTTLKey('!x!' + exp + '!' + key), value: key })
+      batch.push({ type: 'put', key: prefixKey(db, key), value: exp })
+      batch.push({ type: 'put', key: prefixKey(db, '!x!' + exp + '!' + key), value: key })
     })
 
     if (!batch.length)
@@ -125,8 +121,8 @@ function ttloff (db, keys, callback) {
       , { keyEncoding: 'utf8', valueEncoding: 'utf8' }
       , function (err, exp) {
           if (!err && exp > 0) {
-            batch.push({ type: 'del', key: formatTTLKey(key) })
-            batch.push({ type: 'del', key: formatTTLKey(exp + '!' + key) })
+            batch.push({ type: 'del', key: prefixKey(db, key) })
+            batch.push({ type: 'del', key: prefixKey(db, exp + '!' + key) })
           }
           done(err && err.name != 'NotFoundError' && err)
         }
@@ -136,21 +132,21 @@ function ttloff (db, keys, callback) {
 
 function put (db, key, value, options, callback) {
   if (typeof options == 'function') {
-    callback = options;
-    options = {};
+    callback = options
+    options = {}
   }
-  
-  options = options || {};
-  
-  if (default_ttl > 0 && !options.ttl && options.ttl != 0) {
-    options.ttl = default_ttl;
+
+  options = options || {}
+
+  if (db._ttl.options.defaultTTL > 0 && !options.ttl && options.ttl != 0) {
+    options.ttl = db._ttl.options.defaultTTL
   }
 
   var ttl
     , done
     , _callback = callback
 
-  if (typeof options == 'object' && (ttl = options.ttl) > 0
+  if (options.ttl > 0
       && key !== null && key !== undefined
       && value !== null && value !== undefined) {
 
@@ -181,14 +177,14 @@ function del (db, key, options, callback) {
 
 function batch (db, arr, options, callback) {
   if (typeof options == 'function') {
-    callback = options;
-    options = {};
+    callback = options
+    options = {}
   }
 
   options = options || {}
-  
-  if (default_ttl > 0 && !options.ttl && options.ttl != 0) {
-    options.ttl = default_ttl;
+
+  if (db._ttl.options.defaultTTL > 0 && !options.ttl && options.ttl != 0) {
+    options.ttl = db._ttl.options.defaultTTL
   }
 
   var ttl
@@ -197,7 +193,7 @@ function batch (db, arr, options, callback) {
     , off
     , _callback = callback
 
-  if (typeof options == 'object' && (ttl = options.ttl) > 0 && Array.isArray(arr)) {
+  if (options.ttl > 0 && Array.isArray(arr)) {
     done = after(3, _callback || function () {})
     callback = done
 
@@ -252,14 +248,12 @@ function setup (db, options) {
     , defaultTTL     : 0
   }, options)
 
-  global_options = options;
-  default_ttl = options.defaultTTL;
-
   db._ttl = {
-      put   : db.put.bind(db)
-    , del   : db.del.bind(db)
-    , batch : db.batch.bind(db)
-    , close : db.close.bind(db)
+      put     : db.put.bind(db)
+    , del     : db.del.bind(db)
+    , batch   : db.batch.bind(db)
+    , close   : db.close.bind(db)
+    , options : options
   }
 
   db[options.methodPrefix + 'put']   = put.bind(null, db)

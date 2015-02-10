@@ -432,7 +432,7 @@ ltest('single put with default ttl set', function (db, t, createReadStream) {
   });
 
   setTimeout(t.end.bind(t), 175)
-}, [], { defaultTTL: 75 } )
+}, {}, { defaultTTL: 75 } )
 
 
 ltest('single put with overridden ttl set', function (db, t, createReadStream) {
