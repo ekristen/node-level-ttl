@@ -414,7 +414,7 @@ test('test stop() method stops interval and doesn\'t hold process up', function 
 
 ltest('single put with default ttl set', function (db, t, createReadStream) {
   db.put('foo', 'bar1', function(err) {
-    t.ok(!err, 'no error');
+    t.ok(!err, 'no error')
 
     setTimeout(function () {
       db.get('foo', function (err, value) {
@@ -429,7 +429,7 @@ ltest('single put with default ttl set', function (db, t, createReadStream) {
         t.notOk(value, 'no value')
       })
     }, 125)
-  });
+  })
 
   setTimeout(t.end.bind(t), 175)
 }, {}, { defaultTTL: 75 } )
@@ -437,7 +437,7 @@ ltest('single put with default ttl set', function (db, t, createReadStream) {
 
 ltest('single put with overridden ttl set', function (db, t, createReadStream) {
   db.put('foo', 'bar1', { ttl: 99 }, function(err) {
-    t.ok(!err, 'no error');
+    t.ok(!err, 'no error')
 
     setTimeout(function () {
       db.get('foo', function (err, value) {
@@ -463,7 +463,7 @@ ltest('batch put with default ttl set', function (db, t, createReadStream) {
     { type: 'put', key: 'foo', value: 'bar1' },
     { type: 'put', key: 'bar', value: 'foo1' }
   ], function(err) {
-    t.ok(!err, 'no error');
+    t.ok(!err, 'no error')
     
     setTimeout(function () {
       db.get('foo', function (err, value) {
@@ -471,7 +471,7 @@ ltest('batch put with default ttl set', function (db, t, createReadStream) {
         t.equal('bar1', value)
         db.get('bar', function(err, value) {
           t.notOk(err, 'no error')
-          t.equal('foo1', value);
+          t.equal('foo1', value)
         })
       })
     }, 50)
@@ -483,7 +483,7 @@ ltest('batch put with default ttl set', function (db, t, createReadStream) {
         db.get('bar', function(err, value) {
           t.ok(err, 'no error')
           t.ok(err.notFound, 'not found error')
-          t.notOk(value, 'no value');
+          t.notOk(value, 'no value')
         })
       })
     }, 125)
@@ -504,7 +504,7 @@ ltest('batch put with overriden ttl set', function (db, t, createReadStream) {
         t.equal('bar1', value)
         db.get('bar', function(err, value) {
           t.notOk(err, 'no error')
-          t.equal('foo1', value);
+          t.equal('foo1', value)
         })
       })
     }, 50)
@@ -516,7 +516,7 @@ ltest('batch put with overriden ttl set', function (db, t, createReadStream) {
         db.get('bar', function(err, value) {
           t.ok(err, 'no error')
           t.ok(err.notFound, 'not found error')
-          t.notOk(value, 'no value');
+          t.notOk(value, 'no value')
         })
       })
     }, 125)
