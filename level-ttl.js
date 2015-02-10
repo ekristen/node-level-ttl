@@ -142,8 +142,7 @@ function put (db, key, value, options, callback) {
     options.ttl = db._ttl.options.defaultTTL
   }
 
-  var ttl
-    , done
+  var done
     , _callback = callback
 
   if (options.ttl > 0
@@ -187,8 +186,7 @@ function batch (db, arr, options, callback) {
     options.ttl = db._ttl.options.defaultTTL
   }
 
-  var ttl
-    , done
+  var done
     , on
     , off
     , _callback = callback
