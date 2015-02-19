@@ -5,13 +5,11 @@ const test       = require('tape')
     , ttl        = require('./')
     , xtend      = require('xtend')
 
-
 function fixtape (t) {
   t.like = function (str, reg, msg) {
     t.ok(reg.test(str), msg)
   }
 }
-
 
 function ltest (name, fn, opts, ttl_opts) {
   test(name, function (t) {
@@ -38,7 +36,6 @@ function ltest (name, fn, opts, ttl_opts) {
   })
 }
 
-
 function db2arr (createReadStream, t, callback, opts) {
   createReadStream(opts)
     .pipe(listStream.obj  (function (err, arr) {
@@ -47,7 +44,6 @@ function db2arr (createReadStream, t, callback, opts) {
       callback(null, arr)
     }))
 }
-
 
 function contains (t, arr, key, value) {
   for (var i = 0; i < arr.length; i++) {
@@ -64,7 +60,6 @@ function contains (t, arr, key, value) {
   return t.fail('does not contain {' + (key.source || key) + ', ' + (value.source || value) + '}')
 }
 
-
 // test that the standard API is working as it should
 // kind of a lame test but we know they should throw
 false && ltest('test single ttl entry', function (db, t) {
@@ -72,7 +67,6 @@ false && ltest('test single ttl entry', function (db, t) {
   t.throws(db.del.bind(db), { name: 'WriteError', message: 'del() requires a key argument' })
   t.end()
 })
-
 
 ltest('test single ttl entry with put', function (db, t, createReadStream) {
   db.put('foo', 'foovalue', function (err) {
@@ -105,7 +99,6 @@ ltest('test single ttl entry with put', function (db, t, createReadStream) {
     })
   })
 })
-
 
 ltest('test multiple ttl entries with put', function (db, t, createReadStream) {
   var expect = function (delay, keys) {
@@ -145,7 +138,6 @@ ltest('test multiple ttl entries with put', function (db, t, createReadStream) {
 
   setTimeout(t.end.bind(t), 600)
 })
-
 
 ltest('test multiple ttl entries with batch-put', function (db, t, createReadStream) {
   var expect = function (delay, keys) {
@@ -193,7 +185,6 @@ ltest('test multiple ttl entries with batch-put', function (db, t, createReadStr
   setTimeout(t.end.bind(t), 275)
 })
 
-
 ltest('test prolong entry life with additional put', function (db, t, createReadStream) {
   var putBar = function () {
         db.put('bar', 'barvalue', { ttl: 250 })
@@ -231,7 +222,6 @@ ltest('test prolong entry life with additional put', function (db, t, createRead
     retest(i)
   setTimeout(t.end.bind(t), 300)
 })
-
 
 ltest('test prolong entry life with ttl(key, ttl)', function (db, t, createReadStream) {
   var ttlBar = function () {
@@ -271,7 +261,6 @@ ltest('test prolong entry life with ttl(key, ttl)', function (db, t, createReadS
     retest(i)
   setTimeout(t.end.bind(t), 300)
 })
-
 
 ltest('test del', function (db, t, createReadStream) {
   var verify = function (base, delay) {
@@ -314,7 +303,6 @@ ltest('test del', function (db, t, createReadStream) {
   setTimeout(t.end.bind(t), 550)
 })
 
-
 ltest('test del with db value encoding', function (db, t, createReadStream) {
   var verify = function (base, delay) {
         setTimeout(function () {
@@ -355,7 +343,6 @@ ltest('test del with db value encoding', function (db, t, createReadStream) {
   verify(-1, 350)
   setTimeout(t.end.bind(t), 550)
 }, { keyEncoding: 'utf8', valueEncoding: 'json' })
-
 
 test('test stop() method stops interval and doesn\'t hold process up', function (t) {
   t.plan(9)
@@ -412,7 +399,6 @@ test('test stop() method stops interval and doesn\'t hold process up', function 
   })
 })
 
-
 ltest('single put with default ttl set', function (db, t, createReadStream) {
   db.put('foo', 'bar1', function(err) {
     t.ok(!err, 'no error')
@@ -435,7 +421,6 @@ ltest('single put with default ttl set', function (db, t, createReadStream) {
   setTimeout(t.end.bind(t), 175)
 }, {}, { defaultTTL: 75 } )
 
-
 ltest('single put with overridden ttl set', function (db, t, createReadStream) {
   db.put('foo', 'bar1', { ttl: 99 }, function(err) {
     t.ok(!err, 'no error')
@@ -457,7 +442,6 @@ ltest('single put with overridden ttl set', function (db, t, createReadStream) {
 
   setTimeout(t.end.bind(t), 175)
 }, {}, { defaultTTL: 75 } )
-
 
 ltest('batch put with default ttl set', function (db, t, createReadStream) {
   db.batch([
@@ -489,10 +473,9 @@ ltest('batch put with default ttl set', function (db, t, createReadStream) {
       })
     }, 125)
   })
-  
+
   setTimeout(t.end.bind(t), 175)
 }, {}, { defaultTTL: 75 })
-
 
 ltest('batch put with overriden ttl set', function (db, t, createReadStream) {
   db.batch([
@@ -522,10 +505,9 @@ ltest('batch put with overriden ttl set', function (db, t, createReadStream) {
       })
     }, 125)
   })
-  
+
   setTimeout(t.end.bind(t), 175)
 }, {}, { defaultTTL: 75 })
-
 
 test('without options', function (t) {
   var location = '__ttl-' + Math.random()

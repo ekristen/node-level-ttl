@@ -3,35 +3,40 @@ const after    = require('after')
     , sublevel = require('level-sublevel')
 
     , DEFAULT_FREQUENCY = 10000
+    , START             = 'x!'
 
-function prefixKey (db, key) {
-  var opts = db._ttl.options
-  return opts.separator + key
+function expirationKey (db, exp, key) {
+  var separator = db._ttl.options.separator
+  return START + exp + separator + key
 }
 
 function startTtl (db, checkFrequency) {
   db._ttl.intervalId = setInterval(function () {
     var batch    = []
-      , subbatch = []
+      , subBatch = []
+      , separator = db._ttl.options.separator
       , query = {
             keyEncoding: 'utf8'
           , valueEncoding: 'utf8'
-          , start: 'x!'
-          , end: 'x!' + String(Date.now()) + '~'
+          , start: START
+          , end: START + String(Date.now()) + '~'
         }
 
     db._ttl._checkInProgress = true
     db._ttl.sub.createReadStream(query)
       .on('data', function (data) {
+        // expirationKey that matches this query
+        subBatch.push({ type: 'del', key: data.key })
+        // the value is the key!
+        subBatch.push({ type: 'del', key: data.value })
+        // the actual data that should expire now!
         batch.push({ type: 'del', key: data.value })
-        batch.push({ type: 'del', key: data.key })
-        subbatch.push({ type: 'del', key: data.value })
       })
       .on('error', db.emit.bind(db, 'error'))
       .on('end', function () {
         if (batch.length) {
           db._ttl.sub.batch(
-              batch
+              subBatch
             , { keyEncoding: 'utf8' }
             , function (err) {
                 if (err)
@@ -41,7 +46,7 @@ function startTtl (db, checkFrequency) {
         }
 
         db._ttl.batch(
-            subbatch
+            batch
           , { keyEncoding: 'utf8' }
           , function (err) {
               if (err)
@@ -71,8 +76,8 @@ function stopTtl (db, callback) {
 }
 
 function ttlon (db, keys, ttl, callback) {
-  var exp   = String(Date.now() + ttl)
-    , batch = []
+  var exp      = String(Date.now() + ttl)
+    , subBatch = []
 
   if (!Array.isArray(keys))
     keys = [ keys ]
@@ -81,15 +86,15 @@ function ttlon (db, keys, ttl, callback) {
     keys.forEach(function (key) {
       if (typeof key != 'string')
         key = key.toString()
-      batch.push({ type: 'put', key: key, value: exp })
-      batch.push({ type: 'put', key: 'x!' + exp + '!' + key, value: key })
+      subBatch.push({ type: 'put', key: expirationKey(db, exp, key), value: key })
+      subBatch.push({ type: 'put', key: key, value: exp })
     })
 
-    if (!batch.length)
+    if (!subBatch.length)
       return callback && callback()
 
     db._ttl.sub.batch(
-        batch
+        subBatch
       , { keyEncoding: 'utf8', valueEncoding: 'utf8' }
       , function (err) {
           if (err)
@@ -104,16 +109,16 @@ function ttloff (db, keys, callback) {
   if (!Array.isArray(keys))
     keys = [ keys ]
 
-  var batch = []
+  var subBatch = []
     , done  = after(keys.length, function (err) {
         if (err)
           db.emit('error', err)
 
-        if (!batch.length)
+        if (!subBatch.length)
           return callback && callback()
 
         db._ttl.sub.batch(
-            batch
+            subBatch
           , { keyEncoding: 'utf8', valueEncoding: 'utf8' }
           , function (err) {
               if (err)
@@ -127,13 +132,13 @@ function ttloff (db, keys, callback) {
     if (typeof key != 'string')
       key = key.toString()
 
-    db.get(
+    db._ttl.sub.get(
         key
       , { keyEncoding: 'utf8', valueEncoding: 'utf8' }
       , function (err, exp) {
           if (!err && exp > 0) {
-            batch.push({ type: 'del', key: key })
-            batch.push({ type: 'del', key: exp + '!' + key })
+            subBatch.push({ type: 'del', key: expirationKey(db, exp, key) })
+            subBatch.push({ type: 'del', key: key })
           }
           done(err && err.name != 'NotFoundError' && err)
         }
@@ -255,7 +260,6 @@ function setup (db, options) {
     , separator      : '!'
     , checkFrequency : DEFAULT_FREQUENCY
     , defaultTTL     : 0
-    , sub            : options.sub || false
   }, options)
 
   db._ttl = {
